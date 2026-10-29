@@ -55,3 +55,10 @@ NOT visually verified since the loop re-layout: bedroom upstairs, outside stairs
 ## Conventions / preferences
 - No AI attribution in commits; user wants low token use: understand once, avoid extra test rounds unless asked.
 - Don't reproduce copyrighted characters/music (the lab is an original "kid-genius lab", not a franchise one).
+
+
+## City mode (added later)
+- `city.html` + `js/city.js` = open-world Rawalpindi/Islamabad on OSM data (see README). Metres, x east, z south, origin 33.65N 73.06E.
+- The day (`CHAPTERS`) is placed on real places in `PLACES`/`SITE_OF`; coordinates were set from memory, verify them on the map. Arriving shows `E`; the chapter plays in an iframe of `index.html?p=` (autoplays via its `#play` button) then returns.
+- Phone (`T`): scripted chats/calls in `SC`/`CT`/`INC` in city.js are the seam for real Slack, calendar, GPS and home-automation data later.
+- Known gaps: GPS is a straight-line arrow (no turn-by-turn routing); buildings are mostly generated; terrain is flat; Margalla hills are backdrop only; no touch controls; interiors take ~30 s to load in the iframe.
