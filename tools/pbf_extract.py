@@ -13,11 +13,12 @@ def keep_way(t):
     return (t.get("highway") in HW or "building" in t or t.get("natural") in ("water", "wood") or t.get("waterway") in ("river", "stream", "canal")
             or t.get("leisure") in ("park", "pitch", "golf_course") or t.get("landuse") in ("forest", "grass", "cemetery", "recreation_ground", "residential", "commercial", "industrial", "retail", "farmland", "military", "construction"))
 
+AM = {"hospital", "clinic", "university", "college", "school", "place_of_worship", "restaurant", "cafe", "fast_food", "bank", "pharmacy", "fuel", "cinema", "marketplace", "police", "ice_cream", "food_court"}
 def keep_node(t):
-    return "name" in t and (t.get("amenity") in ("hospital", "university", "place_of_worship", "restaurant", "cafe") or "tourism" in t or t.get("place") in ("suburb", "neighbourhood", "town", "city"))
+    return "name" in t and (t.get("amenity") in AM or "tourism" in t or "shop" in t or "brand" in t or t.get("place") in ("suburb", "neighbourhood", "town", "city"))
 
 out = []
-fp = osmium.FileProcessor(sys.argv[1]).with_locations().with_filter(osmium.filter.KeyFilter("highway", "building", "natural", "leisure", "landuse", "waterway", "amenity", "tourism", "place"))
+fp = osmium.FileProcessor(sys.argv[1]).with_locations().with_filter(osmium.filter.KeyFilter("highway", "building", "natural", "leisure", "landuse", "waterway", "amenity", "tourism", "place", "shop", "brand"))
 for o in fp:
     t = {k: v for k, v in o.tags}
     if o.is_node():

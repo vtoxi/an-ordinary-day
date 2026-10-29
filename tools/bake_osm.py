@@ -34,6 +34,20 @@ def speed(t):
     try: return int(str(t["maxspeed"]).split()[0])
     except (KeyError, ValueError): return 0
 
+def elev(t, pts, cls):
+    """flyover profile: ramps up over ~12 m of road per metre of rise, so short bridges stay low"""
+    if t.get("bridge") in (None, "no") or cls > 4: return None
+    try: lay = min(2, max(1, abs(int(t.get("layer", 1)))))
+    except ValueError: lay = 1
+    d = [0.0]
+    for a, b in zip(pts, pts[1:]): d.append(d[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    L = d[-1]
+    if L < 25: return None
+    H = 6.2 * lay; ramp = H * 12
+    if L < 2 * ramp: ramp = L / 2; H = ramp / 12
+    sm = lambda u: u * u * (3 - 2 * u)
+    return [round(H * sm(min(1, min(x, L - x) / ramp)), 1) for x in d]
+
 def height(t, wid):
     if "height" in t:
         try: return max(3, float(str(t["height"]).split()[0]))
@@ -48,7 +62,10 @@ for f in sorted(glob.glob(HERE + "/raw/t_*.json")):
         if el["id"] in seen: continue
         seen.add(el["id"]); t = el.get("tags", {})
         if el["type"] == "node":
-            x, z = proj(el["lat"], el["lon"]); glob_["labels"].append({"n": nm(t), "x": x, "z": z, "k": t.get("place") or t.get("amenity") or "poi"}); continue
+            x, z = proj(el["lat"], el["lon"]); glob_["labels"].append({"n": nm(t), "x": x, "z": z, "k": t.get("place") or t.get("amenity") or "poi"})
+            kind = t.get("amenity") or ("shop" if "shop" in t else t.get("tourism") or "")
+            if kind and nm(t) and not t.get("place"): C(x, z).setdefault("poi", []).append({"n": nm(t)[:28], "x": x, "z": z, "k": kind, "b": (t.get("brand") or "")[:20] if (t.get("brand") or "").isascii() else ""})
+            continue
         g = el.get("geometry")
         if not g or len(g) < 2: continue
         pts = [proj(q["lat"], q["lon"]) for q in g]
@@ -56,12 +73,16 @@ for f in sorted(glob.glob(HERE + "/raw/t_*.json")):
             cls = ROAD[t["highway"]]
             o = 1 if t.get("oneway") in ("yes", "true", "1") or t.get("highway") in ("motorway", "motorway_link") else 0
             meta = {"c": cls, "o": o, "w": round(road_w(t, cls), 1), "n": nm(t) or (t.get("ref") if (t.get("ref") or "").isascii() else ""), "s": speed(t)}
-            run = [pts[0]]
-            for a in pts[1:]:
+            ys = elev(t, pts, cls)
+            if t.get("bridge") not in (None, "no") and ys: meta["b"] = 1
+            if t.get("tunnel") in ("yes", "covered"): meta["t"] = 1
+            run, ry = [pts[0]], [ys[0]] if ys else None
+            def emit(): C(*run[0])["roads"].append({**meta, "p": [v for q in run for v in q], **({"y": ry} if ry else {})})
+            for k, a in enumerate(pts[1:], 1):
                 run.append(a)
-                if ck(*a) != ck(*run[0]):
-                    C(*run[0])["roads"].append({**meta, "p": [v for q in run for v in q]}); run = [a]
-            if len(run) > 1: C(*run[0])["roads"].append({**meta, "p": [v for q in run for v in q]})
+                if ys: ry.append(ys[k])
+                if ck(*a) != ck(*run[0]): emit(); run, ry = [a], [ys[k]] if ys else None
+            if len(run) > 1: emit()
             if cls <= 2: glob_["overview"].append({"c": cls, "p": [v for q in pts[::max(1, len(pts) // 40)] for v in q]})
             if nm(t) and cls <= 2 and random.random() < 0.15: glob_["labels"].append({"n": nm(t), "x": pts[len(pts) // 2][0], "z": pts[len(pts) // 2][1], "k": "road"})
             continue
