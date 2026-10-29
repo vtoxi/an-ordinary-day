@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vice Multiverse</title>
+  <meta name="description" content="First-person open-world neon city: live a day across four parallel universes.">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/jsm/"}}</script>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --a: #ff2fa0; --b: #18f0ff; --ink: #f4f0ff; --panel: rgba(8, 4, 24, .62); }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #05020f; color: var(--ink); font: 14px/1.35 'Chakra Petch', system-ui, sans-serif; }
+    canvas#gl { display: block; width: 100vw; height: 100vh; }
+    .hud { position: fixed; pointer-events: none; text-shadow: 0 0 8px rgba(0,0,0,.8); }
+    .panel { background: var(--panel); border: 1px solid color-mix(in srgb, var(--b) 40%, transparent); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
+    #top { top: 14px; left: 14px; }
+    #clock { font-size: 34px; font-weight: 700; letter-spacing: 1px; color: var(--b); }
+    #uni { color: var(--a); font-weight: 600; text-transform: uppercase; letter-spacing: 2px; font-size: 12px; }
+    #obj { top: 14px; left: 50%; transform: translateX(-50%); text-align: center; max-width: min(560px, 60vw); }
+    #obj b { color: var(--b); }
+    #arrow { display: inline-block; font-size: 18px; color: var(--a); transition: transform .1s; }
+    #map { top: 14px; right: 14px; width: 210px; height: 210px; border-radius: 50%; border: 2px solid var(--b); box-shadow: 0 0 24px color-mix(in srgb, var(--b) 50%, transparent); }
+    #map.big { width: min(86vmin, 760px); height: min(86vmin, 760px); border-radius: 14px; top: 50%; right: 50%; transform: translate(50%, -50%); }
+    #log { bottom: 14px; left: 14px; width: 330px; max-height: 46vh; overflow: hidden; font-size: 12.5px; }
+    #log h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 2px; color: var(--a); }
+    #log li { list-style: none; display: grid; grid-template-columns: 44px 16px 1fr; gap: 4px; opacity: .55; }
+    #log li.now { opacity: 1; color: var(--b); }
+    #log li.done { opacity: .95; } #log li.missed { opacity: .4; text-decoration: line-through; }
+    #log ul { margin: 0; padding: 0; }
+    #speed { bottom: 18px; right: 18px; font-size: 30px; font-weight: 700; color: var(--b); display: none; text-align: right; }
+    #speed small { display: block; font-size: 11px; color: var(--ink); letter-spacing: 2px; }
+    #prompt { bottom: 22%; left: 50%; transform: translateX(-50%); font-weight: 600; }
+    #cross { top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: var(--b); box-shadow: 0 0 8px var(--b); }
+    #toast { top: 30%; left: 50%; transform: translateX(-50%); font-size: 26px; font-weight: 700; text-align: center; opacity: 0; transition: opacity .4s; color: var(--b); }
+    #toast small { display: block; font-size: 14px; color: var(--ink); font-weight: 400; }
+    #flash { inset: 0; opacity: 0; background: radial-gradient(circle, #fff 0%, var(--a) 35%, transparent 75%); transition: opacity .9s; mix-blend-mode: screen; }
+    #start { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 120%, rgba(255,47,160,.35), rgba(5,2,15,.92) 60%); cursor: pointer; padding: 16px; }
+    #start .card { max-width: 620px; text-align: center; }
+    #start h1 { font-size: clamp(38px, 8vw, 76px); margin: 0; line-height: .95; background: linear-gradient(90deg, var(--a), var(--b)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    #start p { opacity: .85; }
+    #start kbd { border: 1px solid var(--b); border-radius: 4px; padding: 0 5px; font: inherit; color: var(--b); }
+    #start .go { display: inline-block; margin-top: 10px; padding: 10px 22px; border: 2px solid var(--a); border-radius: 30px; font-weight: 700; letter-spacing: 2px; color: var(--a); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <canvas id="gl"></canvas>
+  <div class="hud panel" id="top"><div id="clock">06:15</div><div id="uni"></div><div id="day"></div></div>
+  <div class="hud panel" id="obj"></div>
+  <canvas class="hud" id="map" width="440" height="440"></canvas>
+  <div class="hud panel" id="log"><h3>DAY TRACE</h3><ul id="logList"></ul></div>
+  <div class="hud panel" id="speed">0<small>MPH · ALT 0</small></div>
+  <div class="hud" id="prompt"></div>
+  <div class="hud" id="cross"></div>
+  <div class="hud" id="toast"></div>
+  <div class="hud" id="flash"></div>
+  <div id="start"><div class="card">
+    <h1>VICE<br>MULTIVERSE</h1>
+    <p>One day. One island. Four realities. Follow the day's events across the city — or ignore them and cause trouble. Step through a rift to jump universes; physics and skyline change with it.</p>
+    <p><kbd>WASD</kbd> move · <kbd>Mouse</kbd> look · <kbd>Shift</kbd> sprint · <kbd>Space</kbd> jump / climb<br>
+       <kbd>F</kbd> enter / exit hovercar · <kbd>C</kbd> descend · <kbd>V</kbd> cockpit / chase cam<br>
+       <kbd>M</kbd> big map · <kbd>[</kbd> <kbd>]</kbd> time speed · <kbd>U</kbd> shift universe · <kbd>Esc</kbd> pause</p>
+    <div class="go">CLICK TO PLAY</div>
+  </div></div>
+  <script type="module" src="js/city.js"></script>
+</body>
+</html>
