@@ -14,6 +14,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CHAPTERS, TOTAL } from './story.js';
 
 const $ = id => document.getElementById(id);
+const WV = 1;   // bump when world/ is re-baked (the CDN caches static files)
 const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
 const LAT0 = 33.65, LON0 = 73.06, CH = 1000, KX = 111320 * Math.cos(LAT0 * Math.PI / 180), KZ = 110574;
 const ll = (lat, lon) => [(lon - LON0) * KX, -(lat - LAT0) * KZ];
@@ -184,7 +185,7 @@ const ck = (x, z) => [Math.floor(x / CH), Math.floor(z / CH)], kk = (i, j) => i 
 async function loadChunk(i, j) {
   const key = kk(i, j); loading.add(key);
   try {
-    const d = await (await fetch(`world/c_${i}_${j}.json`)).json();
+    const d = await (await fetch(`world/c_${i}_${j}.json?v=${WV}`)).json();
     const g = new THREE.Group(), rd = blank(), gr = blank(), wt = blank(), bl = blank(), zn = blank(), mine = [];
     for (const r of d.roads) {
       if (r.c === 5) { ribbon(r.p, 6, 0.1, ROAD_C[5], rd); continue; }
@@ -828,7 +829,7 @@ function frame() {
   tm('render', () => composer.render()); requestAnimationFrame(frame);
 }
 (async () => {
-  GL = await (await fetch('world/global.json')).json();
+  GL = await (await fetch(`world/global.json?v=${WV}`)).json();
   GL.chunks.forEach(([i, j]) => have.add(kk(i, j)));
   buildMapBase(); landmarks();
   const gm = blank(), gw = blank();
