@@ -8,6 +8,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 import { CHAPTERS } from './story.js';
 
 const $ = id => document.getElementById(id);
@@ -19,7 +20,7 @@ const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
 const C = h => new THREE.Color(h);
 
 const UNI = [
-  { name: 'Vice Prime', tag: 'Earth-2186', day: 0x86c8ff, dusk: 0xff6f9c, night: 0x0b0322, neon: [0xff2fa0, 0x18f0ff, 0xffb020], bldg: [0xf4d6e6, 0xbfe9ef, 0xfff0c8, 0x8f9fd0], ground: 0xffffff, sea: 0x0c4a6e, g: 32, hs: 1, fog: 0.0018 },
+  { name: 'Vice Prime', tag: 'Earth-2186', day: 0x86c8ff, dusk: 0xff6f9c, night: 0x0b0322, neon: [0xff2fa0, 0x18f0ff, 0xffb020], bldg: [0xd9d4cc, 0x9aa6b2, 0xe8dcc8, 0x5d6a78], ground: 0xffffff, sea: 0x0c4a6e, g: 32, hs: 1, fog: 0.0018 },
   { name: 'Verdant Loop', tag: 'Earth-77G', day: 0xbfe8b0, dusk: 0xffc25a, night: 0x041a12, neon: [0x7dff6a, 0xffe14a, 0x3affc8], bldg: [0x9fcf8f, 0xe8e0b8, 0x6fa88a, 0xd8f0d0], ground: 0xc8e8b0, sea: 0x0d5a4a, g: 32, hs: 0.55, fog: 0.0024 },
   { name: 'Low-G Drift', tag: 'Earth-0.3g', day: 0xb7a6ff, dusk: 0xff7a5a, night: 0x07031a, neon: [0xb36bff, 0xff5ad1, 0x5af0ff], bldg: [0x8a7bc8, 0x5a4a9a, 0xc0b0ff, 0x3a2f6a], ground: 0xb0a8ff, sea: 0x2a1060, g: 9, hs: 1.9, fog: 0.0013 },
   { name: 'Gridline Zero', tag: 'Earth-NULL', day: 0x0a1630, dusk: 0x301040, night: 0x000008, neon: [0x00f0ff, 0xff7a00, 0x00ff9a], bldg: [0x00b8d0, 0xff7a00, 0x00f0ff, 0x40ffb0], ground: 0x406080, sea: 0x001020, g: 32, hs: 1.2, fog: 0.0016, wire: true },
@@ -32,6 +33,8 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.55;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x000000, U.fog);
 const cam = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.3, 5000);
@@ -48,6 +51,12 @@ addEventListener('resize', () => {
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0x223344, 0.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 1.5); scene.add(sun, sun.target);
+const sky = new Sky(); sky.scale.setScalar(4000); scene.add(sky);
+const su = sky.material.uniforms; su.turbidity.value = 6; su.rayleigh.value = 1.6; su.mieCoefficient.value = 0.004; su.mieDirectionalG.value = 0.85;
+const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene(), envSky = new Sky(); envSky.scale.setScalar(1000); envScene.add(envSky);
+let envRT = null, envHour = -9, envUni = -1;
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
+Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, near: 10, far: 1400 });
 const sunBall = new THREE.Mesh(new THREE.SphereGeometry(60, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffe8b0, fog: false }));
 const moonBall = new THREE.Mesh(new THREE.SphereGeometry(40, 16, 12), new THREE.MeshBasicMaterial({ color: 0xcfe0ff, fog: false }));
 scene.add(sunBall, moonBall);
@@ -88,8 +97,8 @@ const groundTex = new THREE.CanvasTexture(gcan);
 groundTex.colorSpace = THREE.SRGBColorSpace; groundTex.anisotropy = 8;
 const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.85, metalness: 0.1 });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(ISLAND * 2, ISLAND * 2), groundMat);
-ground.rotation.x = -Math.PI / 2; scene.add(ground);
-const seaMat = new THREE.MeshStandardMaterial({ color: U.sea, roughness: 0.12, metalness: 0.6 });
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const seaMat = new THREE.MeshStandardMaterial({ color: U.sea, roughness: 0.06, metalness: 0.9 });
 const sea = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), seaMat);
 sea.rotation.x = -Math.PI / 2; sea.position.y = -0.8; scene.add(sea);
 
@@ -104,7 +113,8 @@ function windowCanvas(lit) {
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter; return t;
 }
-const bldMat = new THREE.MeshStandardMaterial({ map: windowCanvas(false), emissiveMap: windowCanvas(true), emissive: 0xffffff, roughness: 0.35, metalness: 0.45 });
+const bldMat = new THREE.MeshStandardMaterial({ map: windowCanvas(false), emissiveMap: windowCanvas(true), emissive: 0xffffff, roughness: 0.22, metalness: 0.7, envMapIntensity: 1.2 });
+for (const t of [bldMat.map, bldMat.emissiveMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 3); t.anisotropy = 8; }
 const trimMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const boxGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
 const B = [];                                  // {x,z,hw,hd,h,ci,ni}
@@ -122,6 +132,7 @@ for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
 }
 const bldIM = new THREE.InstancedMesh(boxGeo, bldMat, B.length);
 const trimIM = new THREE.InstancedMesh(boxGeo, trimMat, B.length);
+bldIM.castShadow = bldIM.receiveShadow = true;
 scene.add(bldIM, trimIM);
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler();
 function layoutBuildings() {
@@ -167,14 +178,17 @@ const landmarkNeon = [];
 
 // palms on the beach ring + boulevard
 const palmN = 220, trunkIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.9, 1, 6).translate(0, 0.5, 0), std(0x7a5a3a, { metalness: 0 }), palmN);
-const crownIM = new THREE.InstancedMesh(new THREE.ConeGeometry(7, 4, 7), std(0x2f8a4a, { metalness: 0 }), palmN);
+const FR = 8, frondGeo = new THREE.PlaneGeometry(2.2, 11, 1, 6).translate(0, 5.5, 0);
+{ const a = frondGeo.attributes.position; for (let v = 0; v < a.count; v++) { const y = a.getY(v); a.setZ(v, -0.02 * y * y); a.setX(v, a.getX(v) * Math.sin(Math.PI * Math.min(1, y / 11 + 0.05))); } frondGeo.computeVertexNormals(); }
+const crownIM = new THREE.InstancedMesh(frondGeo, std(0x3d6b2a, { metalness: 0, roughness: 0.8, side: THREE.DoubleSide }), palmN * FR);
+crownIM.castShadow = trunkIM.castShadow = true;
 for (let k = 0; k < palmN; k++) {
   let x, z;
   if (k < 160) { const t = rnd(-1, 1) * (ISLAND - 25), e = rnd(HALF + 18, ISLAND - 12); [x, z] = pick([[e, t], [-e, t], [t, e], [t, -e]]); }
   else { x = lotC(1) + 35; z = -HALF + (k - 160) * (HALF * 2 / 60); x += k % 2 ? 4 : -4; }
   const h = rnd(18, 30);
   trunkIM.setMatrixAt(k, _m.compose(_p.set(x, 0, z), _q.setFromEuler(_e.set(rnd(-0.12, 0.12), 0, rnd(-0.12, 0.12))), _s.set(1, h, 1)));
-  crownIM.setMatrixAt(k, _m.compose(_p.set(x, h, z), _q.identity(), _s.set(1, 0.6, 1)));
+  for (let f = 0; f < FR; f++) crownIM.setMatrixAt(k * FR + f, _m.compose(_p.set(x, h, z), _q.setFromEuler(_e.set(rnd(0.9, 1.4), f / FR * Math.PI * 2 + rnd(0.3), 0, 'YXZ')), _s.set(1, 1, 1)));
 }
 scene.add(trunkIM, crownIM);
 
@@ -337,19 +351,27 @@ function updateSky() {
   const a = (hour - 6) / 12 * Math.PI, el = Math.sin(a);
   const dayK = THREE.MathUtils.smoothstep(el, -0.12, 0.3), duskK = Math.exp(-((el / 0.2) ** 2));
   tmpA.set(U.night).lerp(tmpB.set(U.day), dayK).lerp(tmpB.set(U.dusk), duskK * 0.65);
-  scene.background = tmpA; scene.fog.color.copy(tmpA);
+  const real = !U.wire;
+  sky.visible = real; sunBall.visible = !real; scene.background = real ? null : tmpA; scene.fog.color.copy(tmpA);
   const dir = _p.set(Math.cos(a), el, -0.35).normalize();
   sunBall.position.copy(cam.position).addScaledVector(dir, 2600);
   moonBall.position.copy(cam.position).addScaledVector(dir, -2600);
   sun.position.copy(cam.position).addScaledVector(dir, 500); sun.target.position.copy(cam.position);
-  sun.intensity = 2.2 * dayK; sun.color.set(0xffffff).lerp(tmpB.set(U.dusk), duskK);
-  hemi.intensity = 0.25 + 0.75 * dayK; hemi.color.set(U.day); hemi.groundColor.set(U.neon[0]).multiplyScalar(0.25);
+  sky.position.copy(cam.position); su.sunPosition.value.copy(dir);
+  if (real && (Math.abs(hour - envHour) > 0.25 || envUni !== uni)) {
+    envHour = hour; envUni = uni; envSky.material.uniforms.sunPosition.value.copy(dir);
+    for (const k of ['turbidity', 'rayleigh', 'mieCoefficient', 'mieDirectionalG']) envSky.material.uniforms[k].value = su[k].value;
+    envRT?.dispose(); envRT = pmrem.fromScene(envScene); scene.environment = envRT.texture;
+  } else if (!real) scene.environment = null;
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.intensity = 3 * dayK; sun.color.set(0xffffff).lerp(tmpB.set(U.dusk), duskK);
+  hemi.intensity = 0.08 + 0.25 * dayK; hemi.color.set(U.day); hemi.groundColor.set(U.neon[0]).multiplyScalar(0.25);
   stars.material.opacity = 1 - dayK; stars.position.copy(cam.position);
   const night = 1 - dayK;
-  bldMat.emissiveIntensity = U.wire ? 1.5 : 0.15 + 1.7 * night;
-  trimMat.color.setScalar(0.35 + 0.9 * night);
+  bldMat.emissiveIntensity = U.wire ? 1.5 : 0.02 + 2.2 * night * night;
+  trimMat.color.setScalar(0.08 + 1.1 * night);
   lampHeads.material.color.setScalar(0.2 + night);
-  bloom.strength = 0.35 + 0.9 * night;
+  bloom.strength = 0.12 + 0.7 * night; renderer.toneMappingExposure = 0.5 + 0.5 * night;
 }
 
 // ---------- events / HUD ----------
