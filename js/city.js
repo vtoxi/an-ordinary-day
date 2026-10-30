@@ -13,8 +13,8 @@ import { SimplexNoise } from 'three/addons/math/SimplexNoise.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CHAPTERS, TOTAL } from './story.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { carParts, trafficGeo, wheelGeos, plateTex, colorize, bikeGeo, qingqiGeo, rickGeo, vanGeo, truckGeo, cartGeo } from './cars.js?v=5';
-import { Particles, Blood } from './fx.js?v=5';
+import { carParts, trafficGeo, wheelGeos, plateTex, colorize, bikeGeo, qingqiGeo, rickGeo, vanGeo, truckGeo, cartGeo } from './cars.js?v=6';
+import { Particles, Blood } from './fx.js?v=6';
 
 const $ = id => document.getElementById(id);
 const WV = 2;   // bump when world/ is re-baked (the CDN caches static files)
@@ -70,9 +70,9 @@ sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.
 Object.assign(sun.shadow.camera, { left: -140, right: 140, top: 140, bottom: -140, near: 10, far: 1500 });
 const moon = new THREE.DirectionalLight(0x9db4ff, 0); scene.add(moon, moon.target);
 const sky = new Sky(); sky.scale.setScalar(30000); scene.add(sky);
-const su = sky.material.uniforms; su.turbidity.value = 7; su.rayleigh.value = 1.4; su.mieCoefficient.value = 0.005; su.mieDirectionalG.value = 0.7;
+const su = sky.material.uniforms; su.turbidity.value = 3; su.rayleigh.value = 2; su.mieCoefficient.value = 0.002; su.mieDirectionalG.value = 0.8;
 const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene(), envSky = new Sky(); envSky.scale.setScalar(1000); envScene.add(envSky);
-envSky.material.uniforms.turbidity.value = 7;
+envSky.material.uniforms.turbidity.value = 3;
 let envRT = null, envHour = -9;
 const starGeo = new THREE.BufferGeometry(), sp = [];
 for (let i = 0; i < 1800; i++) { const v = new THREE.Vector3().randomDirection(); v.y = Math.abs(v.y) + 0.02; sp.push(...v.normalize().multiplyScalar(20000).toArray()); }
@@ -145,7 +145,7 @@ function worldDetail(mat, scale) {
 }
 const greenMat = new THREE.MeshStandardMaterial({ color: 0x4f7a3a, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
 worldDetail(roadMat, 9);
-for (const m of [roadMat, greenMat]) { m.roughness = 1; m.envMapIntensity = 0.15; }
+for (const m of [roadMat, greenMat]) { m.roughness = 1; m.envMapIntensity = 0.05; }
 const zoneMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, polygonOffset: true, polygonOffsetFactor: -0.5, polygonOffsetUnits: -0.5 });
 const waterMat = new THREE.MeshStandardMaterial({ color: 0x2a5878, roughness: 0.08, metalness: 0.6, polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -1.5 });
 
@@ -304,7 +304,7 @@ async function loadChunk(i, j) {
     for (const a of d.green) fillPoly(a.p, 0.05, gr);
     for (const a of d.water) fillPoly(a.p, 0.07, wt);
     buildingGeo(d.bld, bl);
-    const props = decorChunk(d.roads, g);
+    const props = decorChunk(d.roads, g, d.green);
     for (const [o, mat, sh] of [[zn, zoneMat], [rd, roadMat], [gr, greenMat], [wt, waterMat], [bl, bldMat, true], [br, bridgeMat, true]]) { const m = mkMesh(o, mat, sh); if (m) g.add(m); }
     const sprites = signs.map(makeSign); for (const s of sprites) g.add(s);
     const col = d.bld.map(b => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let q = 0; q < b.p.length; q += 2) { x0 = Math.min(x0, b.p[q]); x1 = Math.max(x1, b.p[q]); z0 = Math.min(z0, b.p[q + 1]); z1 = Math.max(z1, b.p[q + 1]); } return { p: b.p, x0, x1, z0, z1 }; });
@@ -727,7 +727,17 @@ const treeGeo = merge([vcol(new THREE.CylinderGeometry(0.16, 0.24, 3.2, 6).trans
 const lampGeo = merge([vcol(new THREE.CylinderGeometry(0.07, 0.1, 7.5, 6).translate(0, 3.75, 0), [0.25, 0.26, 0.28]), bx(0.07, 0.07, 1.6, 0, 7.5, 0.8, [0.25, 0.26, 0.28]), bx(0.5, 0.12, 0.3, 0, 7.45, 1.6, [1, 0.9, 0.6])]);
 const treeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
 const lampMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4, emissive: 0xffd9a0, emissiveIntensity: 0 });
-function decorChunk(roads, g) {
+const inPoly = (x, z, p) => { let c = false; const n = p.length / 2; for (let a = 0, b = n - 1; a < n; b = a++) { const zi = p[a * 2 + 1], zj = p[b * 2 + 1]; if ((zi > z) !== (zj > z) && x < (p[b * 2] - p[a * 2]) * (z - zi) / (zj - zi) + p[a * 2]) c = !c; } return c; };
+function nearRoad(x, z, roads) {
+  for (const r of roads) {
+    if (r.c > 4) continue; const p = r.p, lim = (r.w || ROAD_W[r.c]) / 2 + 3.5;
+    if (!r.bb) { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let i = 0; i < p.length; i += 2) { x0 = Math.min(x0, p[i]); x1 = Math.max(x1, p[i]); z0 = Math.min(z0, p[i + 1]); z1 = Math.max(z1, p[i + 1]); } r.bb = [x0 - 10, x1 + 10, z0 - 10, z1 + 10]; }
+    if (x < r.bb[0] || x > r.bb[1] || z < r.bb[2] || z > r.bb[3]) continue;
+    for (let k = 0; k < p.length - 2; k += 2) { const ex = p[k + 2] - p[k], ez = p[k + 3] - p[k + 1], u = clamp(((x - p[k]) * ex + (z - p[k + 1]) * ez) / (ex * ex + ez * ez || 1), 0, 1); if ((x - p[k] - ex * u) ** 2 + (z - p[k + 1] - ez * u) ** 2 < lim * lim) return true; }
+  }
+  return false;
+}
+function decorChunk(roads, g, green = []) {
   const trees = [], lamps = [], props = [];
   for (const r of roads) {
     if (r.c > 4 || r.c < 1 || r.y || r.t) continue;
@@ -737,10 +747,18 @@ function decorChunk(roads, g) {
       const ux = (x1 - x0) / L, uz = (z1 - z0) / L;
       for (; acc < L; acc += 14 + Math.random() * 10) for (const s of [-1, 1]) {
         const o = w / 2 + 2.4, x = x0 + ux * acc - uz * o * s, z = z0 + uz * acc + ux * o * s;
-        if (Math.random() < (r.c >= 3 ? 0.3 : 0.18)) trees.push(x, z, 0.8 + Math.random() * 0.7, Math.random() * 6.3);
-        else if (r.c <= 3 && Math.random() < 0.25) lamps.push(x, z, Math.atan2(uz * s, -ux * s) + Math.PI / 2 * 0);
+        if (r.c <= 3 && Math.random() < 0.3) lamps.push(x, z, Math.atan2(uz * s, -ux * s) + Math.PI / 2 * 0);
       }
       acc -= L;
+    }
+  }
+  for (const a of green) {                                              // trees only in parks / grass / woods, never on verges or medians
+    const p = a.p; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, A = 0, n = p.length / 2;
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; x0 = Math.min(x0, p[i * 2]); x1 = Math.max(x1, p[i * 2]); z0 = Math.min(z0, p[i * 2 + 1]); z1 = Math.max(z1, p[i * 2 + 1]); A += p[i * 2] * p[j * 2 + 1] - p[j * 2] * p[i * 2 + 1]; }
+    const want = Math.min(70, Math.floor(Math.abs(A) / 2 / 330));
+    for (let q = 0, got = 0; q < want * 4 && got < want && trees.length < 1000; q++) {
+      const x = x0 + Math.random() * (x1 - x0), z = z0 + Math.random() * (z1 - z0);
+      if (inPoly(x, z, p) && !nearRoad(x, z, roads)) { trees.push(x, z, 0.8 + Math.random() * 0.8, Math.random() * 6.3); got++; }
     }
   }
   for (const [list, geo, mat, stride, kind] of [[trees, treeGeo, treeMat, 4, 0], [lamps, lampGeo, lampMat, 3, 1]]) {
@@ -957,7 +975,7 @@ let signT = 0;
 function updateSigns() {
   for (const c of loaded.values()) {
     const far = Math.hypot((c.i + 0.5) * CH - P.pos.x, (c.j + 0.5) * CH - P.pos.z) > 800;
-    for (const s of c.sprites) { if (far) { s.visible = false; continue; } const d = Math.hypot(s.userData.x - P.pos.x, s.userData.z - P.pos.z); s.visible = d < s.userData.far && d > 4; }
+    for (const s of c.sprites) { if (far) { s.visible = false; continue; } const d = Math.hypot(s.userData.x - P.pos.x, s.userData.z - P.pos.z); s.visible = d < s.userData.far && d > 22; }
   }
 }
 
@@ -1146,24 +1164,26 @@ function updateSky() {
   const dayK = THREE.MathUtils.smoothstep(el, -0.1, 0.25), duskK = Math.exp(-((el / 0.18) ** 2));
   const dir = _d.set(Math.cos(a), el, -0.3).normalize();
   sky.position.copy(cam.position); su.sunPosition.value.copy(dir);
-  su.rayleigh.value = 0.25 + 1.5 * dayK + duskK * 1.2; su.mieCoefficient.value = 0.003 + duskK * 0.004;
+  su.rayleigh.value = 0.3 + 0.9 * dayK + duskK * 1.0; su.mieCoefficient.value = 0.002 + duskK * 0.004; su.turbidity.value = 2 + 5 * duskK;
   if (Math.abs(hour - envHour) > 0.3) {
     envHour = hour; envSky.material.uniforms.sunPosition.value.copy(dir); envSky.material.uniforms.rayleigh.value = su.rayleigh.value;
     envRT?.dispose(); envRT = pmrem.fromScene(envScene); scene.environment = envRT.texture;
   }
-  scene.environmentIntensity = 0.1 + 0.2 * dayK;
-  tmpA.setRGB(0.42, 0.55, 0.75).lerp(tmpB.setRGB(0.9, 0.55, 0.38), duskK * 0.7).lerp(tmpB.setRGB(0.02, 0.03, 0.07), 1 - dayK);
-  scene.fog.color.copy(tmpA); scene.fog.density = 0.0003 + 0.0002 * (1 - dayK) + 0.0003 * duskK;
+  scene.environmentIntensity = 0.1;
+  tmpA.setRGB(0.5, 0.66, 0.9).lerp(tmpB.setRGB(0.9, 0.55, 0.38), duskK * 0.7).lerp(tmpB.setRGB(0.02, 0.03, 0.07), 1 - dayK);
+  scene.fog.color.copy(tmpA); scene.fog.density = 0.00012 + 0.0003 * (1 - dayK) + 0.0003 * duskK;
   sun.position.set(snap(P.pos.x + dir.x * 600, 8), P.pos.y + dir.y * 600, snap(P.pos.z + dir.z * 600, 8)); sun.target.position.set(snap(P.pos.x, 8), 0, snap(P.pos.z, 8));
-  sun.intensity = 1.7 * dayK; sun.color.setRGB(1, 0.96, 0.9).lerp(tmpB.setRGB(1, 0.6, 0.35), duskK);
+  sun.intensity = 3.5 * dayK; sun.color.setRGB(1, 0.96, 0.9).lerp(tmpB.setRGB(1, 0.6, 0.35), duskK);
   moon.intensity = 0.7 * (1 - dayK); moon.position.set(P.pos.x - dir.x * 600, 400, P.pos.z - dir.z * 600); moon.target.position.copy(P.pos);
-  hemi.intensity = 0.3 - 0.05 * dayK; hemi.color.setRGB(0.8, 0.88, 1).lerp(tmpB.setRGB(0.25, 0.3, 0.5), 1 - dayK);
+  hemi.intensity = 0.3 - 0.1 * dayK; hemi.color.setRGB(0.8, 0.88, 1).lerp(tmpB.setRGB(0.25, 0.3, 0.5), 1 - dayK);
   stars.material.opacity = clamp(1 - dayK * 1.6, 0, 1); stars.position.copy(cam.position);
   const night = nightK = 1 - dayK;
   lampMat.emissiveIntensity = 2.5 * night;
   bldMat.emissiveIntensity = 1.1 * night; CM.lamp.emissiveIntensity = 0.6 + 3.5 * night; myCar.lights.forEach(l => l.intensity = 1800 * night * night);
-  bloom.threshold = lerp(4, 0.9, night); bloom.strength = 0.1 + 0.3 * night; renderer.toneMappingExposure = 0.5 + 0.35 * night;
+  bloom.threshold = lerp(4, 0.9, night); bloom.strength = 0.02 + 0.38 * night; renderer.toneMappingExposure = 0.5 + 0.4 * night;
   ground.material.color.setScalar(0.5 + 0.5 * dayK);
+  const ov = window.__ov;   // dev tuning hook
+  if (ov) { if (ov.ray != null) su.rayleigh.value = ov.ray; if (ov.turb != null) su.turbidity.value = ov.turb; if (ov.exp != null) renderer.toneMappingExposure = ov.exp; if (ov.bth != null) bloom.threshold = ov.bth; if (ov.bst != null) bloom.strength = ov.bst; if (ov.fog != null) scene.fog.density = ov.fog; if (ov.sun != null) sun.intensity = ov.sun; if (ov.hemi != null) hemi.intensity = ov.hemi; if (ov.env != null) scene.environmentIntensity = ov.env; }
 }
 
 // ---------- HUD ----------
