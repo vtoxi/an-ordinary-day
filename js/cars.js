@@ -42,6 +42,11 @@ const STYLE = {
     cabin: [[-.55, .66, .92, .98, .9], [-.15, .64, .92, 1.45, .86], [.45, .64, .92, 1.52, .85], [1.2, .64, .92, 1.5, .85], [1.62, .68, .92, 1, .92]],
     wheel: [.27, .2, .7, 1.1, -1.1], hy: .76, ty: .84,
   },
+  peugeot: {      // Peugeot 2008 (2nd gen, 2020+ facelift): 4.30 m, short overhangs, black cladding, roof rails, lion-claw lights
+    body: [[-2.15, .62, .5, .7, .9], [-2.08, .78, .42, .84, .95], [-1.8, .86, .38, .93, .96], [-1, .88, .36, .98, .97], [0, .89, .36, 1.0, .97], [1.2, .88, .36, 1.02, .97], [1.9, .84, .4, 1.0, .96], [2.1, .76, .44, .95, .94], [2.15, .62, .5, .86, .9]],
+    cabin: [[-.75, .74, .98, 1.02, .9], [-.25, .72, .98, 1.4, .86], [.3, .7, .98, 1.55, .85], [1.25, .7, .98, 1.56, .85], [1.75, .74, .98, 1.4, .88], [2.0, .78, .98, 1.05, .92]],
+    wheel: [.345, .215, .765, 1.3, -1.3], hy: .86, ty: 1.0, peugeot: true,
+  },
   pickup: {
     body: [[-2.6, .7, .6, .78, .92], [-2.5, .88, .5, .94, .95], [-2, .92, .46, 1.1, .96], [-1, .93, .44, 1.14, .97], [.1, .93, .44, 1.16, .97], [.6, .93, .44, 1.1, .97], [.9, .93, .44, 1.08, .97], [2.5, .9, .46, 1.08, .96], [2.6, .82, .5, 1, .94]],
     cabin: [[-.95, .78, 1.14, 1.2, .9], [-.45, .76, 1.14, 1.75, .86], [.45, .76, 1.14, 1.8, .86], [.85, .8, 1.14, 1.28, .92]],
@@ -57,7 +62,7 @@ export function carParts(style) {
   paint.push(loft(mid, 16));
   if (S.bed) { const [z0, z1] = S.bed, y = S.body.at(-2)[3]; for (const sx of [-1, 1]) paint.push(box(.07, .32, z1 - z0, sx * (hw - .03), y + .14, (z0 + z1) / 2)); paint.push(box(hw * 2 - .1, .32, .07, 0, y + .14, z1), box(hw * 2 - .1, .32, .07, 0, y + .14, z0)); }
   for (const sx of [-1, 1]) {
-    lamp.push(sph(.2, .085, .06, sx * hw * .7, S.hy, f + .06)); tail.push(sph(.2, .075, .06, sx * hw * .72, S.ty, r - .05));
+    if (S.peugeot) lamp.push(sph(.16, .06, .03, sx * .6, S.hy - .03, f + .075)); else { lamp.push(sph(.2, .085, .06, sx * hw * .7, S.hy, f + .06)); tail.push(sph(.2, .075, .06, sx * hw * .72, S.ty, r - .05)); }
     paint.push(box(.09, .09, .16, sx * (hw + .1), S.cabin[0][3] + .02, S.cabin[0][0] - .05));                  // mirrors
     trim.push(box(.02, .04, .18, sx * (hw + .01), S.body[3][3] - .24, 0.35 + (style === 'pickup' ? .1 : 0)));    // door handle
     trim.push(box(.18, .18, .02, sx * hw * .8, .62, f + .02));                                                   // fog light recess
@@ -74,6 +79,20 @@ export function carParts(style) {
   trim.push(box(hw * 1.9, .15, .16, 0, .5, f + .05), box(hw * 1.9, .15, .16, 0, .5, r - .05), box(hw * 1.2, .13, .05, 0, S.hy - .14, f + .02));   // bumpers + grille
   chrome.push(box(hw * 1.1, .03, .04, 0, S.hy - .08, f + .02), box(hw * 1.1, .03, .04, 0, S.hy - .2, f + .02));
   trim.push(new THREE.CylinderGeometry(.04, .04, .3, 8).rotateX(Math.PI / 2).translate(hw * .55, .38, r + .1));  // exhaust
+  if (S.peugeot) {
+    for (const sx of [-1, 1]) {
+      for (let k = 0; k < 3; k++) lamp.push(box(.024, .24 - k * .035, .03, sx * (.5 + k * .05), S.hy - .02 - k * .0, f + .035));             // lion-claw LED signature (front)
+      for (let k = 0; k < 3; k++) tail.push(box(.03, .2 - k * .03, .03, sx * (.78 - k * .06), S.ty + .02, r - .0));                          // three-claw tail lights
+      trim.push(new THREE.TorusGeometry(.345 + .07, .04, 6, 18, Math.PI).rotateY(Math.PI / 2).translate(sx * (hw + .005), .345, -1.3), new THREE.TorusGeometry(.345 + .07, .04, 6, 18, Math.PI).rotateY(Math.PI / 2).translate(sx * (hw + .005), .345, 1.3));   // black arch cladding
+      trim.push(box(.05, .15, 2.1, sx * (hw + .002), .46, 0));                                                                              // sill cladding
+      chrome.push(box(.045, .045, 1.9, sx * .6, 1.6, .55));                                                                                 // roof rails
+      paint.push(box(.045, .06, .05, sx * .6, 1.575, -.35), box(.045, .06, .05, sx * .6, 1.575, 1.45));
+    }
+    tail.push(box(hw * 1.3, .04, .03, 0, S.ty + .06, r - .0));                                                                              // light band
+    trim.push(box(hw * 1.15, .22, .045, 0, S.hy - .2, f + .02), box(hw * 1.5, .06, .1, 0, 1.55, 1.98), box(hw * .9, .2, .03, 0, .62, r + .0));   // grille, roof spoiler, rear bumper insert
+    chrome.push(new THREE.CylinderGeometry(.065, .065, .02, 18).rotateX(Math.PI / 2).translate(0, S.hy - .2, f - .005), new THREE.CylinderGeometry(.05, .05, .02, 18).rotateX(Math.PI / 2).translate(0, S.ty + .32, r + .01));   // lion badge, rear badge
+    chrome.push(box(hw * 1.2, .012, .05, 0, S.hy - .08, f + .02));
+  }
   const [wr, ww, hx, zf, zr] = S.wheel, wheels = [[-hx, wr, zf, wr, ww], [hx, wr, zf, wr, ww], [-hx, wr, zr, wr, ww], [hx, wr, zr, wr, ww]];
   return { paint, glass, trim, chrome, lamp, tail, wheels, len: r - f, f, r, hw, S };
 }
@@ -90,10 +109,10 @@ export function trafficGeo(style, paintCol = WH, extra = []) {
 }
 
 /** pakistani number plate texture */
-export function plateTex(txt = 'ICT-' + (1000 + Math.floor(Math.random() * 8999))) {
+export function plateTex(txt = 'ICT-' + (1000 + Math.floor(Math.random() * 8999)), head = 'ISLAMABAD') {
   const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d');
   x.fillStyle = '#f3f1e8'; x.fillRect(0, 0, 256, 64); x.strokeStyle = '#222'; x.lineWidth = 3; x.strokeRect(2, 2, 252, 60);
-  x.fillStyle = '#16301e'; x.font = '700 38px sans-serif'; x.textAlign = 'center'; x.fillText(txt, 128, 42); x.font = '600 10px sans-serif'; x.fillText('ISLAMABAD', 128, 14);
+  x.fillStyle = '#16301e'; x.font = '700 38px sans-serif'; x.textAlign = 'center'; x.fillText(txt, 128, 42); x.font = '600 10px sans-serif'; x.fillText(head, 128, 14);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 export const colorize = col;

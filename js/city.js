@@ -13,8 +13,8 @@ import { SimplexNoise } from 'three/addons/math/SimplexNoise.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CHAPTERS, TOTAL } from './story.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { carParts, trafficGeo, wheelGeos, plateTex, colorize, bikeGeo, qingqiGeo, rickGeo, vanGeo, truckGeo, cartGeo } from './cars.js?v=6';
-import { Particles, Blood } from './fx.js?v=6';
+import { carParts, trafficGeo, wheelGeos, plateTex, colorize, bikeGeo, qingqiGeo, rickGeo, vanGeo, truckGeo, cartGeo } from './cars.js?v=7';
+import { Particles, Blood } from './fx.js?v=7';
 
 const $ = id => document.getElementById(id);
 const WV = 2;   // bump when world/ is re-baked (the CDN caches static files)
@@ -429,7 +429,7 @@ function wasted(kind = 'WASTED') { if (dead) return; dead = kind; deadT = 0; key
 function respawn() {
   const busted = dead === 'BUSTED'; money = Math.floor(money * (busted ? 0.9 : 0.8)); dead = 0; P.hp = 100; wanted = 0; grade.uniforms.gray.value = 0; $('big').style.opacity = 0; bigT = 0;
   for (const k of cops) { k.on = false; k.g.visible = false; }
-  teleport(busted ? 'faiz' : 'home'); myCar.build('sedan', 0xf0f0f0); P.car = null; blood.cover = 0;
+  teleport(busted ? 'faiz' : 'home'); myCar.build('peugeot', 0xf6f6f2); P.car = null; blood.cover = 0;
   toast(busted ? 'Released' : 'Recovered', busted ? 'You paid a fine. Stay out of trouble.' : 'You woke up at home. The car was repaired.');
 }
 
@@ -444,7 +444,7 @@ const CM = {
   tyre: new THREE.MeshStandardMaterial({ color: 0x0b0b0b, roughness: 0.9 }),
   rim: new THREE.MeshStandardMaterial({ color: 0xaeb4bc, roughness: 0.25, metalness: 0.95 }),
 };
-const VMAX = { sedan: 66.7, hatch: 44, pickup: 53 };     // m/s: the sedan does 240 km/h
+const VMAX = { sedan: 66.7, peugeot: 66.7, hatch: 44, pickup: 53 };     // m/s: the sedan does 240 km/h
 function makeCar(style, color) {
   const g = new THREE.Group(), body = new THREE.Group(), cockpit = new THREE.Group(); g.rotation.order = 'YXZ'; g.add(body, cockpit); cockpit.visible = false;
   const c = { g, body, cockpit, yaw: 0, speed: 0, steer: 0, hp: 100, accel: 0, pitch: 0, defs: [], wheels: [], parts: null, style, exploded: false, burn: 0, smokeAcc: 0, braking: false, eyeY: 1.25, vmax: 66.7 };
@@ -469,14 +469,14 @@ function makeCar(style, color) {
       const steer = new THREE.Group(), spin = new THREE.Group(), { tyre, rim } = wheelGeos(rad, wd); steer.position.set(x, y, z); steer.add(spin);
       const a = new THREE.Mesh(tyre, CM.tyre), b = new THREE.Mesh(rim, CM.rim); a.castShadow = true; spin.add(a, b); body.add(steer); c.wheels.push({ steer, spin, front: z < 0, r: rad, x, z });
     }
-    const pm = new THREE.MeshStandardMaterial({ map: plateTex(), roughness: 0.4 });
+    const pm = new THREE.MeshStandardMaterial({ map: st === 'peugeot' ? plateTex('BSK-798', 'PAKISTAN') : plateTex(), roughness: 0.4 });
     for (const [z, ry] of [[p.f - 0.04, Math.PI], [p.r + 0.04, 0]]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.13), pm); m.position.set(0, 0.52, z); m.rotation.y = ry; body.add(m); }
-    cockpit.position.set(0, st === 'pickup' ? 0.22 : st === 'hatch' ? 0.04 : 0, p.S.cabin[0][0] + 0.75); c.eyeY = 1.25 + cockpit.position.y;
+    cockpit.position.set(0, st === 'pickup' ? 0.22 : st === 'hatch' ? 0.04 : st === 'peugeot' ? 0.1 : 0, p.S.cabin[0][0] + 0.75); c.eyeY = 1.25 + cockpit.position.y;
     c.lights.forEach((l, k) => { const sx = k ? 1 : -1; l.position.set(sx * 0.6, 0.8, p.f + 0.3); l.target.position.set(sx * 0.6, 0.2, p.f - 30); });
   };
   c.build(style, color); scene.add(g); return c;
 }
-const myCar = makeCar('sedan', 0xf0f0f0);
+const myCar = makeCar('peugeot', 0xf6f6f2);
 
 /** push hull vertices near (lx,lz) (car space, x right / z back) inward along (ix,iz), darken the paint there */
 function dentCar(c, lx, lz, amt, ix, iz) {
@@ -538,7 +538,7 @@ function damageFx(dt) {
 function animCar(dt) {
   const c = myCar, roll = c.speed * dt;
   for (const w of c.wheels) { w.spin.rotation.x -= roll / w.r; if (w.front) w.steer.rotation.y = c.steer * 0.4; }
-  CM.tail.emissiveIntensity = c.braking ? 3 : 0.5;
+  CM.tail.emissiveIntensity = c.braking ? 9 : 0.7;
 }
 const inp = () => { const k = n => keys.has(n) ? 1 : 0; return { thr: clamp(k('KeyW') - k('KeyS') + JOY.y, -1, 1), str: clamp(k('KeyA') - k('KeyD') - JOY.x, -1, 1) }; };
 
@@ -559,12 +559,12 @@ function stepCar(dt) {
   const c = myCar, { thr, str } = inp(), alive = c.hp > 0 && !c.exploded, vmax = c.vmax * (c.hp < 30 ? 0.75 : 1), t = alive ? thr : 0, v0 = c.speed, pos = c.g.position;
   const acc = t > 0 ? (c.speed < -0.5 ? 14 : 10.5 * Math.max(0, 1 - (c.speed / (vmax * 1.08)) ** 2)) : t < 0 ? (c.speed > 0.5 ? -16 : -5 * Math.max(0, 1 - (c.speed / -12) ** 2)) : -Math.sign(c.speed) * (Math.abs(c.speed) > 0.6 ? 1.1 : 0);
   c.speed += (acc - Math.sign(c.speed) * (0.3 + 0.00022 * c.speed * c.speed)) * dt;
-  const hb = keys.has('Space'); if (hb) c.speed -= Math.sign(c.speed) * Math.min(Math.abs(c.speed), 17 * dt);
+  const hb = keys.has('Space'); if (hb) c.speed -= Math.sign(c.speed) * Math.min(Math.abs(c.speed), 27 * dt);       // Space = foot brake
   c.speed = clamp(c.speed, -12, vmax); if (!t && Math.abs(c.speed) < 0.3 && !hb) c.speed = 0;
-  c.braking = (t < 0 && v0 > 0.5) || (hb && Math.abs(c.speed) > 0.5);
+  c.braking = (t < 0 && v0 > 0.5) || (hb && v0 > 0.5);
   c.accel = lerp(c.accel, dt > 0 ? (c.speed - v0) / dt : 0, Math.min(1, 6 * dt));
   c.steer = lerp(c.steer, str, Math.min(1, 6 * dt));
-  c.yaw += c.speed / 2.7 * Math.tan(c.steer * 0.5 / (1 + (Math.abs(c.speed) / 10) ** 1.5)) * dt + (hb && Math.abs(c.speed) > 8 ? c.steer * 1.1 * dt * Math.sign(c.speed) : 0);
+  c.yaw += c.speed / 2.7 * Math.tan(c.steer * 0.5 / (1 + (Math.abs(c.speed) / 10) ** 1.5)) * dt + (hb && Math.abs(c.speed) > 14 && Math.abs(c.steer) > 0.5 ? c.steer * 1.1 * dt * Math.sign(c.speed) : 0);
   if (dt > 0 && ((hb && Math.abs(c.speed) > 10) || (Math.abs(c.steer) > 0.75 && Math.abs(c.speed) > 24))) {          // tyre smoke
     fwd(c.yaw, _f); for (const w of c.wheels) if (!w.front && Math.random() < 0.6) fx.emit({ x: pos.x + _f.x * w.z * -1 + Math.cos(c.yaw) * w.x, y: pos.y + 0.15, z: pos.z + _f.z * w.z * -1 - Math.sin(c.yaw) * w.x, vy: 0.5, life: 1, size: 0.4, grow: 1.8, drag: 1.4, col: [.85, .85, .85], a: 0.35 });
   }
@@ -1109,7 +1109,7 @@ function choose(id, i) {
 }
 function startCall(id) {
   const c = CT[id]; phoneView = { call: id, since: performance.now() };
-  if (id === 'car') { const f = fwd(P.yaw, new THREE.Vector3()); const broken = myCar.hp < 100 || myCar.exploded, fee = broken ? Math.min(money, Math.round((100 - Math.max(0, myCar.hp)) * 4)) : 0; if (broken) { myCar.build('sedan', 0xf0f0f0); money -= fee; } myCar.g.position.set(P.pos.x + f.x * 9, P.pos.y, P.pos.z + f.z * 9); myCar.yaw = P.yaw; myCar.speed = 0; myCar.g.rotation.set(0, P.yaw, 0); toast('🚗', fee ? `Repaired and delivered · -$${fee}` : 'Your car is waiting nearby'); closePhone(); return; }
+  if (id === 'car') { const f = fwd(P.yaw, new THREE.Vector3()); const broken = myCar.hp < 100 || myCar.exploded, fee = broken ? Math.min(money, Math.round((100 - Math.max(0, myCar.hp)) * 4)) : 0; if (broken) { myCar.build('peugeot', 0xf6f6f2); money -= fee; } myCar.g.position.set(P.pos.x + f.x * 9, P.pos.y, P.pos.z + f.z * 9); myCar.yaw = P.yaw; myCar.speed = 0; myCar.g.rotation.set(0, P.yaw, 0); toast('🚗', fee ? `Repaired and delivered · -$${fee}` : 'Your car is waiting nearby'); closePhone(); return; }
   if (ringing === id) { ringing = null; $('phoneBtn').classList.remove('ring'); } else if (!c.node) { const b = c.banter[(Math.random() * c.banter.length) | 0]; c.thread.push({ w: 'them', t: b }); speak(b, c.pitch); }
   if (c.node) speak(SC[id][c.node].t, c.pitch);
   renderPhone();
