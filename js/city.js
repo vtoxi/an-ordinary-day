@@ -13,8 +13,8 @@ import { SimplexNoise } from 'three/addons/math/SimplexNoise.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CHAPTERS, TOTAL } from './story.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { carParts, trafficGeo, wheelGeos, plateTex, colorize } from './cars.js?v=4';
-import { Particles, Blood } from './fx.js?v=4';
+import { carParts, trafficGeo, wheelGeos, plateTex, colorize, bikeGeo, qingqiGeo, rickGeo, vanGeo, truckGeo, cartGeo } from './cars.js?v=5';
+import { Particles, Blood } from './fx.js?v=5';
 
 const $ = id => document.getElementById(id);
 const WV = 2;   // bump when world/ is re-baked (the CDN caches static files)
@@ -662,19 +662,24 @@ const VT = [
   { n: 16, v: [8, 16], r: 1.3, minc: 0, maxc: 4, off: 2.4, tints: [0xf4f4f4, 0xf4f4f4, 0xe8e8e8, 0x202226, 0x8a8e94, 0xb7b1a2],       // Corolla / Civic / City style sedan
     geo: trafficGeo('sedan'), style: 'sedan' },
   { n: 6, v: [6, 11], r: 1.3, minc: 1, maxc: 4, off: 2.4, tints: [0xf2f2f2, 0xdcdcdc, 0x6f7a86],                                         // Suzuki Bolan van
-    geo: merge([bx(1.5, 1.15, 3.7, 0, 0.98, 0), bx(1.46, 0.42, 0.06, 0, 1.3, -1.86, GLASS), bx(1.48, 0.3, 2.4, 0, 1.3, 0.5, GLASS), ...four(0.28, 0.2, 0.7, 1.15)]) },
+    geo: vanGeo() },
   { n: 6, v: [8, 15], r: 1.4, minc: 0, maxc: 4, off: 2.4, tints: [0xf0f0f0, 0x23262b, 0xb9b9b4, 0x5b4a3a],                                 // Hilux style pickup
     geo: trafficGeo('pickup'), style: 'pickup' },
   { n: 22, v: [8, 15], r: 0.7, minc: 1, maxc: 4, off: 3.2, tints: [0xc01818, 0x1a1a1a, 0x1b3a8a, 0xdadada, 0x1d6a2a],                      // Honda CD70 style bike with rider
-    geo: merge([wl(0.28, 0.08, 0, 0.28, -0.6), wl(0.28, 0.08, 0, 0.28, 0.6), bx(0.22, 0.32, 1.1, 0, 0.55, 0), bx(0.28, 0.08, 0.6, 0, 0.78, 0.25, DARK), bx(0.6, 0.04, 0.04, 0, 0.98, -0.5, DARK), bx(0.42, 0.62, 0.26, 0, 1.12, 0.12), bx(0.14, 0.4, 0.14, -0.14, 0.78, -0.12, LEG), bx(0.14, 0.4, 0.14, 0.14, 0.78, -0.12, LEG), ball(0.13, 0, 1.58, 0.08, SKIN)]) },
+    geo: bikeGeo() },
   { n: 8, v: [5, 9], r: 0.9, minc: 1, maxc: 4, off: 3.0, tints: [0xe3b800, 0x1c7a3a, 0xe3b800, 0x2a2a2a],                                    // auto-rickshaw
-    geo: merge([bx(1.3, 0.6, 2.3, 0, 0.55, 0.1), bx(1.3, 0.06, 1.7, 0, 1.6, 0.25, DARK), bx(1.2, 0.75, 0.04, 0, 1.2, -0.75, GLASS), bx(0.06, 0.9, 0.06, -0.62, 1.15, -0.6, DARK), bx(0.06, 0.9, 0.06, 0.62, 1.15, -0.6, DARK), bx(0.06, 0.9, 0.06, -0.62, 1.15, 1.0, DARK), bx(0.06, 0.9, 0.06, 0.62, 1.15, 1.0, DARK), wl(0.25, 0.12, 0, 0.25, -1.0), wl(0.25, 0.12, -0.65, 0.25, 0.85), wl(0.25, 0.12, 0.65, 0.25, 0.85)]) },
+    geo: rickGeo() },
   { n: 4, v: [5, 9], r: 1.8, minc: 0, maxc: 3, off: 2.8, tints: [0x2e6fd0, 0xd04a2e, 0x2a9a52, 0xe0b020],                                    // painted Hino-style truck
-    geo: merge([bx(2.2, 1.7, 1.8, 0, 1.3, -3.2, [.9, .9, .9]), bx(2.1, 0.5, 0.06, 0, 1.7, -4.11, GLASS), bx(2.4, 1.9, 5.6, 0, 1.95, 0.8, [.85, .85, .85]), bx(2.45, 0.25, 5.65, 0, 2.5, 0.8, [1, .3, .15]), bx(2.45, 0.12, 5.65, 0, 1.55, 0.8, [.2, .7, .3]), bx(2.4, 0.2, 7.6, 0, 0.85, -0.4, DARK), ...four(0.52, 0.3, 1.0, 2.4), wl(0.52, 0.3, -1.0, 0.52, -0.2), wl(0.52, 0.3, 1.0, 0.52, -0.2)]) },
+    geo: truckGeo() },
   { n: 3, v: [1.2, 2.2], r: 1.4, minc: 3, maxc: 4, off: 3.2, tints: [0xffffff],                                                              // donkey cart
-    geo: merge([bx(1.5, 0.12, 2.6, 0, 0.9, 0.4, WOOD), bx(0.06, 0.3, 2.6, -0.75, 1.05, 0.4, WOOD), bx(0.06, 0.3, 2.6, 0.75, 1.05, 0.4, WOOD), wl(0.5, 0.08, -0.82, 0.5, 0.6), wl(0.5, 0.08, 0.82, 0.5, 0.6), bx(0.06, 0.06, 2.2, -0.35, 0.85, -1.7, WOOD), bx(0.06, 0.06, 2.2, 0.35, 0.85, -1.7, WOOD), bx(0.45, 0.55, 1.1, 0, 0.9, -2.8, HIDE), bx(0.2, 0.3, 0.45, 0, 1.3, -3.5, HIDE), bx(0.1, 0.55, 0.1, -0.15, 0.3, -2.4, HIDE2), bx(0.1, 0.55, 0.1, 0.15, 0.3, -2.4, HIDE2), bx(0.1, 0.55, 0.1, -0.15, 0.3, -3.2, HIDE2), bx(0.1, 0.55, 0.1, 0.15, 0.3, -3.2, HIDE2)]) },
+    geo: cartGeo() },
+  { n: 5, v: [6, 10], r: 1.1, minc: 2, maxc: 4, off: 3.0, tints: [0x2e6fd0, 0xd04a2e, 0xe3b800, 0x1c7a3a],   // Qingqi loader
+    geo: qingqiGeo() },
 ];
 const vehMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.45 });
+vehMat.onBeforeCompile = sh => {            // the instance tint only paints vertices flagged paintMask (glass, tyres, riders keep their own colours)
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float paintMask;').replace('vColor.rgb *= instanceColor.rgb;', 'vColor.rgb *= mix(vec3(1.0), instanceColor.rgb, paintMask);');
+};
 const agents = [];
 for (const [t, vt] of VT.entries()) {
   vt.im = new THREE.InstancedMesh(vt.geo, vehMat, vt.n); vt.im.castShadow = true; vt.im.frustumCulled = false; scene.add(vt.im);
@@ -1005,7 +1010,7 @@ const PLACES = {
 };
 for (const s of Object.values(PLACES)) [s.x, s.z] = ll(...s.ll);
 const SITE_OF = { wake: 'home', ready: 'home', commute: 'faiz', code: 'office', meet: 'mall', lunch: 'monal', build: 'office', home: 'home', family: 'park', hobby: 'lab', sleep: 'home' };
-let EV = [], hour = 6.5, ffTo = 0, day = 1, trail = [], trailT = 0, mapBig = false, timeScale = 30;
+let EV = [], hour = 6.5, ffTo = 0, day = 1, trail = [], trailT = 0, mapBig = false, mapZ = 0, timeScale = 30;
 const resetEvents = () => { EV = CHAPTERS.map((c, k) => ({ id: c.id, title: c.title, text: c.text, hour: c.hour, end: CHAPTERS[k + 1]?.hour ?? 24, site: PLACES[SITE_OF[c.id]], status: 'pending' })); };
 resetEvents();
 const beacon = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 1200, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
@@ -1216,12 +1221,26 @@ function buildMapBase() {
   for (const cls of [2, 1, 0]) for (const r of GL.overview) if (r.c === cls) { x.strokeStyle = ['#e8c070', '#d8d8e0', '#8a93a8'][cls]; x.lineWidth = [2.6, 2.2, 1.2][cls]; x.beginPath(); for (let i = 0; i < r.p.length; i += 2) x[i ? 'lineTo' : 'moveTo'](mpx(r.p[i]), mpz(r.p[i + 1])); x.stroke(); }
 }
 const mctx = $('map').getContext('2d');
+function setMapZ(z) { mapZ = z; mapBig = z > 0; const m = $('map'); m.classList.toggle('big', mapBig); m.width = m.height = mapBig ? 760 : 440; }
+const PLACE_K = new Set(['suburb', 'neighbourhood', 'town', 'city', 'village', 'hospital', 'university']);
 function drawMap() {
-  const W = 440, ctx = mctx, view = P.car ? myCar.yaw + P.lookYaw : P.yaw, bw = BOUNDS.x1 - BOUNDS.x0, bh = BOUNDS.z1 - BOUNDS.z0;
-  const sc = mapBig ? Math.min(W / bw, W / bh) : W / 2600, cx = mapBig ? (BOUNDS.x0 + BOUNDS.x1) / 2 : P.pos.x, cz = mapBig ? (BOUNDS.z0 + BOUNDS.z1) / 2 : P.pos.z;
+  const W = mctx.canvas.width, ctx = mctx, view = P.car ? myCar.yaw + P.lookYaw : P.yaw, bw = BOUNDS.x1 - BOUNDS.x0, bh = BOUNDS.z1 - BOUNDS.z0;
+  const sc = mapBig ? W / [0, 3000, 9000, 34000][mapZ] : W / 2600, cx = P.pos.x, cz = P.pos.z, half = W / 2 / sc * 1.45;   // always centred on you
   ctx.fillStyle = '#10141c'; ctx.fillRect(0, 0, W, W); ctx.save();
   ctx.translate(W / 2, W / 2); if (!mapBig) ctx.rotate(view); ctx.scale(sc, sc); ctx.translate(-cx, -cz);
   ctx.drawImage(mapBase, BOUNDS.x0, BOUNDS.z0, bw, bh);
+  if (sc > W / 12000) {                       // real streets of every loaded chunk, by class
+    const cols = ['#f0c878', '#e2e2ea', '#c4c8d4', '#8a93a8', '#5b6478'], wd = [4.5, 3.6, 3, 2.1, 1.4]; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (let c = 4; c >= 0; c--) {
+      ctx.strokeStyle = cols[c]; ctx.lineWidth = wd[c] / sc * (mapBig ? 1.25 : 1); ctx.beginPath();
+      for (const r of runs) { if (r.c !== c || r.x1 < cx - half || r.x0 > cx + half || r.z1 < cz - half || r.z0 > cz + half) continue; const p = r.p; ctx.moveTo(p[0], p[1]); for (let k = 2; k < p.length; k += 2) ctx.lineTo(p[k], p[k + 1]); }
+      ctx.stroke();
+    }
+  }
+  if (mapBig && mapZ < 3) {
+    ctx.textAlign = 'center'; ctx.font = `600 ${11 / sc}px Chakra Petch, sans-serif`;
+    for (const l of GL.labels) { if ((l.k !== 'road' && !PLACE_K.has(l.k)) || (l.k === 'road' && mapZ > 2) || Math.abs(l.x - cx) > half || Math.abs(l.z - cz) > half) continue; ctx.fillStyle = l.k === 'road' ? '#9fd0ff' : 'rgba(255,255,255,.8)'; ctx.fillText(l.n, l.x, l.z); }
+  }
   const px = 1 / sc; ctx.lineWidth = 3 * px; ctx.lineJoin = 'round';
   for (let k = 1; k < trail.length; k++) { if (Math.hypot(trail[k][0] - trail[k - 1][0], trail[k][1] - trail[k - 1][1]) > 300) continue; ctx.strokeStyle = `hsl(${(trail[k][2] / 24) * 300 + 180},100%,60%)`; ctx.beginPath(); ctx.moveTo(trail[k - 1][0], trail[k - 1][1]); ctx.lineTo(trail[k][0], trail[k][1]); ctx.stroke(); }
   const e = activeEvent(), pulse = (7 + Math.sin(performance.now() / 200) * 3) * px;
@@ -1262,7 +1281,7 @@ function act(code) {
   else if (code === 'KeyE') { if (nearEvent && nearEvent.id !== 'commute') enterEvent(nearEvent); }
   else if (code === 'KeyV') P.chase = !P.chase;
   else if (code === 'KeyN') AU.muted = !AU.muted;
-  else if (code === 'KeyM') { mapBig = !mapBig; $('map').classList.toggle('big', mapBig); }
+  else if (code === 'KeyM') { setMapZ((mapZ + 1) % 4); }
   else if (code === 'KeyX') { if (blood.wipe() && AU.ctx) noiseHit(AU.ctx.currentTime, 0.5, 0.12, 1200, AU.out); }
   else if (code === 'KeyR') nextStation();
   else if (code === 'BracketRight') timeScale = Math.min(timeScale * 2, 240);
@@ -1360,4 +1379,4 @@ function frame() {
   await Promise.all([[ci, cj], [ci + 1, cj], [ci, cj + 1], [ci - 1, cj], [ci, cj - 1]].filter(([i, j]) => have.has(kk(i, j))).map(([i, j]) => loadChunk(i, j)));
   frame();
 })();
-window.__city = { ped, falling, crash, surfaceY, elev, cops, fx, blood, wasted, addWanted, get money() { return money; }, set money(v) { money = v; }, get wanted() { return wanted; }, TM, renderer, composer, sun, bloom, gtao, scene, tp: (lat, lon, car = false) => { const [x, z] = ll(lat, lon); P.pos.set(x, 0, z); myCar.g.position.set(x + 4, 0, z); myCar.speed = 0; P.car = car ? myCar : null; }, P, myCar, get hour() { return hour; }, set hour(v) { hour = v; }, teleport, PLACES, get paused() { return paused; }, set paused(v) { paused = v; start.classList.toggle('hidden', !v); }, keys, loaded, runs, agents, EV };
+window.__city = { VT, vehMat, ped, falling, crash, surfaceY, elev, cops, fx, blood, wasted, addWanted, get money() { return money; }, set money(v) { money = v; }, get wanted() { return wanted; }, TM, renderer, composer, sun, bloom, gtao, scene, tp: (lat, lon, car = false) => { const [x, z] = ll(lat, lon); P.pos.set(x, 0, z); myCar.g.position.set(x + 4, 0, z); myCar.speed = 0; P.car = car ? myCar : null; }, P, myCar, get hour() { return hour; }, set hour(v) { hour = v; }, teleport, PLACES, get paused() { return paused; }, set paused(v) { paused = v; start.classList.toggle('hidden', !v); }, keys, loaded, runs, agents, EV };

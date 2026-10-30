@@ -62,6 +62,15 @@ export function carParts(style) {
     trim.push(box(.02, .04, .18, sx * (hw + .01), S.body[3][3] - .24, 0.35 + (style === 'pickup' ? .1 : 0)));    // door handle
     trim.push(box(.18, .18, .02, sx * hw * .8, .62, f + .02));                                                   // fog light recess
   }
+  {
+    const cz0 = S.cabin[1][0], L = S.cabin.at(-2)[0] - cz0;
+    for (const sx of [-1, 1]) {
+      for (const q of [0.12, 0.5, 0.86]) trim.push(box(.012, S.body[3][3] - .45, .014, sx * (hw * 0.995 + .004), (S.body[3][3] + .4) / 2 - .05, cz0 + L * q));    // door seams
+      paint.push(box(.06, .52, .09, sx * (S.cabin[2][1] - .02), S.cabin[2][3] - .26, cz0 + L * 0.5));                                                             // B pillar
+      trim.push(box(.012, .035, L * 0.9, sx * (hw * 0.99 + .004), S.body[3][3] - .06, cz0 + L * 0.5));                                                            // belt-line trim
+      chrome.push(box(.014, .03, L * 0.84, sx * (S.cabin[2][1] + .01), S.cabin[2][2] + .04, cz0 + L * 0.5));                                                      // window sill
+    }
+  }
   trim.push(box(hw * 1.9, .15, .16, 0, .5, f + .05), box(hw * 1.9, .15, .16, 0, .5, r - .05), box(hw * 1.2, .13, .05, 0, S.hy - .14, f + .02));   // bumpers + grille
   chrome.push(box(hw * 1.1, .03, .04, 0, S.hy - .08, f + .02), box(hw * 1.1, .03, .04, 0, S.hy - .2, f + .02));
   trim.push(new THREE.CylinderGeometry(.04, .04, .3, 8).rotateX(Math.PI / 2).translate(hw * .55, .38, r + .1));  // exhaust
@@ -74,8 +83,8 @@ const WH = [1, 1, 1];
 /** single vertex-coloured geometry for instanced traffic (paint stays white so instanceColor tints it) */
 export function trafficGeo(style, paintCol = WH, extra = []) {
   const p = carParts(style), out = [];
-  const add = (list, c) => { for (const g of list) { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k); out.push(col(n, c)); } };
-  add(p.paint, paintCol); for (const [g, c] of extra) add([g], c); add(p.glass, [.09, .12, .16]); add(p.trim, [.05, .05, .05]); add(p.chrome, [.6, .6, .62]); add(p.lamp, [1, .93, .75]); add(p.tail, [.8, .06, .06]);
+  const add = (list, c, mask = 0) => { for (const g of list) { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k); n.setAttribute('paintMask', new THREE.BufferAttribute(new Float32Array(n.attributes.position.count).fill(mask), 1)); out.push(col(n, c)); } };
+  add(p.paint, paintCol, 1); for (const [g, c] of extra) add([g], c, 0); add(p.glass, [.09, .12, .16]); add(p.trim, [.05, .05, .05]); add(p.chrome, [.6, .6, .62]); add(p.lamp, [1, .93, .75]); add(p.tail, [.8, .06, .06]);
   for (const [x, y, z, r, w] of p.wheels) { const { tyre, rim } = wheelGeos(r, w); add([tyre.clone().translate(x, y, z)], [.04, .04, .04]); add([rim.clone().translate(x + Math.sign(x) * .02, y, z)], [.55, .56, .58]); }
   return mergeGeometries(out);
 }
@@ -88,3 +97,82 @@ export function plateTex(txt = 'ICT-' + (1000 + Math.floor(Math.random() * 8999)
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 export const colorize = col;
+
+// ---------- other vehicles (instanced traffic): vertex coloured, paintMask = 1 where the instance tint applies ----------
+const W3 = [1, 1, 1], K = [.05, .05, .05], S = [.62, .63, .66], GL = [.09, .12, .16], LAMP = [1, .93, .75], RED = [.8, .06, .06], SKIN = [.55, .38, .28];
+const WOODA = [.5, .34, .17], WOODB = [.38, .25, .12], GREYD = [.5, .46, .42];
+const wrap = list => mergeGeometries(list.map(([g, c, m]) => {
+  const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k);
+  n.setAttribute('paintMask', new THREE.BufferAttribute(new Float32Array(n.attributes.position.count).fill(m ? 1 : 0), 1)); return col(n, c);
+}));
+const B = (w, h, d, x, y, z, c, rx = 0, p = 0, rz = 0) => { const g = new THREE.BoxGeometry(w, h, d); if (rx) g.rotateX(rx); if (rz) g.rotateZ(rz); return [g.translate(x, y, z), c, p]; };
+const E = (sx, sy, sz, x, y, z, c, p = 0, rx = 0) => { const g = new THREE.SphereGeometry(1, 10, 8).scale(sx, sy, sz); if (rx) g.rotateX(rx); return [g.translate(x, y, z), c, p]; };
+const CY = (r0, r1, h, x, y, z, c, rx = 0, rz = 0) => [new THREE.CylinderGeometry(r0, r1, h, 10).rotateX(rx).rotateZ(rz).translate(x, y, z), c, 0];
+const WHL = (x, y, z, r, w) => { const { tyre, rim } = wheelGeos(r, w); return [[tyre.translate(x, y, z), [.04, .04, .04], 0], [rim.translate(x, y, z), [.6, .6, .62], 0]]; };
+/** seated person facing -z; (x, y, z) = seat position */
+const PERSON = (x, y, z, shirt, pants = [.2, .2, .24], lean = 0.2) => [
+  E(.2, .3, .13, x, y + 0.5, z, shirt, 0, -lean), E(.11, .13, .115, x, y + 0.92, z - lean * .4, SKIN), E(.12, .075, .12, x, y + 0.99, z - lean * .4 + .01, [.05, .05, .06]),
+  ...[-1, 1].map(s => B(.1, .6, .1, x + s * .23, y + 0.38, z - .2, shirt, -1.9)),
+  ...[-1, 1].map(s => B(.14, .36, .14, x + s * .12, y + 0.05, z - .1, pants, -2.0)), ...[-1, 1].map(s => B(.12, .42, .12, x + s * .18, y - .2, z - .32, pants, 2.9)),
+];
+export function bikeGeo(qingqi = false) {
+  const rz = qingqi ? 0.35 : 0.62, parts = [
+    ...WHL(0, .3, -.62, .3, .09), ...(qingqi ? [] : WHL(0, .3, rz, .3, .09)),
+    B(.04, .66, .05, 0, .62, -.6, S, .22), B(.12, .1, .85, 0, .52, .05, K), B(.18, .26, .3, 0, .44, 0, [.35, .35, .38]),
+    E(.14, .1, .26, 0, .84, -.2, W3, 1), B(.2, .08, .55, 0, .78, .3, K), B(.5, .02, .03, 0, 1.0, -.5, K), B(.03, .03, .3, 0, 1.0, -.5, K),
+    E(.09, .09, .06, 0, .95, -.72, LAMP), E(.05, .04, .03, 0, .74, rz, RED), E(.07, .03, .3, 0, .62, -.62, W3, 1),
+    CY(.04, .05, .8, .14, .3, .25, S, Math.PI / 2), B(.04, .1, .04, .3, 1.04, -.5, S), B(.04, .1, .04, -.3, 1.04, -.5, S),
+    ...PERSON(0, .55, .25, [.84, .82, .76]),
+  ];
+  if (qingqi) parts.push(...WHL(-.6, .3, .95, .3, .12), ...WHL(.6, .3, .95, .3, .12), B(1.5, .08, 1.5, 0, .72, 1.05, K), B(.06, .35, 1.5, -.74, .92, 1.05, W3, 0, 1), B(.06, .35, 1.5, .74, .92, 1.05, W3, 0, 1), B(1.5, .35, .06, 0, .92, 1.8, W3, 0, 1), B(1.5, .35, .06, 0, .92, .3, W3, 0, 1), E(.4, .25, .4, 0, 1.0, 1.1, [.78, .7, .5]), E(.3, .2, .3, .3, 1.05, 1.5, [.7, .62, .45]));
+  return wrap(parts);
+}
+export const qingqiGeo = () => bikeGeo(true);
+export function rickGeo() {
+  return wrap([
+    ...WHL(0, .25, -.95, .25, .12), ...WHL(-.65, .25, .9, .25, .12), ...WHL(.65, .25, .9, .25, .12),
+    B(1.3, .5, 1.5, 0, .62, .55, W3, 0, 1), E(.62, .34, .62, 0, .72, -.5, W3, 1), B(1.1, .1, .5, 0, .95, -.1, K),
+    B(1.16, .72, .04, 0, 1.28, -.46, GL, -.28), B(.06, .95, .06, -.62, 1.22, -.2, K), B(.06, .95, .06, .62, 1.22, -.2, K), B(.06, .95, .06, -.62, 1.22, 1.15, K), B(.06, .95, .06, .62, 1.22, 1.15, K),
+    E(.72, .08, 1.05, 0, 1.7, .4, [.08, .08, .08]), B(.9, .3, .03, 0, 1.4, 1.17, GL), B(1.1, .12, .6, 0, 1.0, .75, [.16, .1, .08]), B(1.1, .5, .1, 0, 1.28, 1.1, [.16, .1, .08]),
+    E(.1, .1, .08, 0, .85, -1.05, LAMP), E(.2, .05, .36, 0, .6, -.95, W3, 1), B(.04, .5, .04, 0, .5, -.9, S), B(.7, .03, .03, 0, 1.02, -.55, K),
+    ...PERSON(.18, .96, .15, [.72, .74, .8], [.8, .78, .7], 0.05),
+  ]);
+}
+export function vanGeo() {
+  return wrap([
+    ...WHL(-.7, .29, -1.15, .29, .2), ...WHL(.7, .29, -1.15, .29, .2), ...WHL(-.7, .29, 1.1, .29, .2), ...WHL(.7, .29, 1.1, .29, .2),
+    B(1.5, .72, 3.8, 0, .76, 0, W3, 0, 1), B(1.46, .6, 3.1, 0, 1.4, .3, W3, 0, 1), B(1.3, .55, .04, 0, 1.34, -1.2, GL, -.5), B(1.48, .34, 2.5, 0, 1.46, .45, GL), B(.06, .6, .08, -.75, 1.4, .1, W3, 0, 1), B(.06, .6, .08, .75, 1.4, .1, W3, 0, 1), B(.06, .6, .08, -.75, 1.4, 1.2, W3, 0, 1), B(.06, .6, .08, .75, 1.4, 1.2, W3, 0, 1),
+    B(1.5, .06, 3.2, 0, 1.73, .3, W3, 0, 1), B(1.44, .6, .1, 0, 1.0, -1.88, W3, 0, 1), B(1.56, .16, .14, 0, .52, -1.9, K), B(1.56, .16, .14, 0, .52, 1.9, K),
+    E(.18, .1, .05, -.5, .96, -1.93, LAMP), E(.18, .1, .05, .5, .96, -1.93, LAMP), E(.12, .08, .04, -.6, .9, 1.92, RED), E(.12, .08, .04, .6, .9, 1.92, RED), B(.5, .12, .03, 0, .78, -1.93, S),
+    B(.012, .55, .014, .755, 1.0, -.3, K), B(.012, .55, .014, -.755, 1.0, -.3, K), B(.012, .55, .014, .755, 1.0, .6, K), B(.012, .55, .014, -.755, 1.0, .6, K),
+  ]);
+}
+export function truckGeo() {
+  const panels = [[.85, .2, .1], [.1, .55, .25], [.95, .75, .1], [.15, .3, .75]], out = [
+    ...WHL(-1, .52, -2.6, .52, .3), ...WHL(1, .52, -2.6, .52, .3),
+    ...[1.9, 2.65].flatMap(z => [...WHL(-1, .52, z, .52, .3), ...WHL(1, .52, z, .52, .3)]),
+    B(2.1, 1.5, 1.7, 0, 1.55, -3.1, W3, 0, 1), B(1.9, .55, .04, 0, 1.95, -3.96, GL), B(.04, .5, .8, -1.06, 1.95, -3.2, GL), B(.04, .5, .8, 1.06, 1.95, -3.2, GL), B(1.6, .55, .05, 0, 1.15, -3.97, S), B(2.2, .22, .22, 0, .66, -4.0, S),
+    E(.15, .1, .05, -.75, 1.15, -3.99, LAMP), E(.15, .1, .05, .75, 1.15, -3.99, LAMP), B(1.4, .06, 1.4, 0, 2.33, -3.1, W3, 0, 1),
+    B(1.2, .26, 7.6, 0, .78, -.4, K), B(2.4, .12, 5.6, 0, 1.25, .9, WOODA), B(2.4, 1.0, .08, 0, 1.8, -1.9, W3, 0, 1), E(.9, .32, .05, 0, 2.5, -1.88, [.95, .75, .1]),
+    CY(.06, .06, 1.8, 1.12, 2.2, -2.3, S), CY(.26, .26, .9, -1.0, .95, -.8, S, 0, Math.PI / 2), B(.1, .1, .35, -1.3, 1.9, -3.9, S), B(.1, .1, .35, 1.3, 1.9, -3.9, S),
+    B(2.4, .9, .08, 0, 1.75, 3.65, panels[0]), B(.9, .35, .06, 0, 2.3, 3.66, panels[2]),
+  ];
+  for (let k = 0; k < 5; k++) for (const sx of [-1, 1]) out.push(B(.08, .65, 1.05, sx * 1.2, 1.6, -1.3 + k * 1.1, panels[(k + (sx > 0 ? 1 : 0)) % 4]), B(.1, .12, 1.1, sx * 1.2, 1.97, -1.3 + k * 1.1, [.9, .9, .85]));
+  return wrap(out);
+}
+export function cartGeo() {
+  const out = [], spokeWheel = x => {
+    const ring = new THREE.TorusGeometry(.48, .045, 6, 18).rotateY(Math.PI / 2).translate(x, .5, .6); out.push([ring, [.3, .2, .1], 0], CY(.07, .07, .14, x, .5, .6, S, 0, Math.PI / 2));
+    for (let k = 0; k < 4; k++) out.push(B(.04, .94, .04, x, .5, .6, WOODB, k * Math.PI / 4));
+  };
+  spokeWheel(-.82); spokeWheel(.82);
+  out.push(B(1.5, .1, 2.5, 0, .95, .5, WOODA), B(.06, .32, 2.5, -.75, 1.16, .5, WOODB), B(.06, .32, 2.5, .75, 1.16, .5, WOODB), B(1.5, .32, .06, 0, 1.16, -.75, WOODB), B(1.5, .32, .06, 0, 1.16, 1.75, WOODB),
+    B(.06, .06, 2.7, -.38, .9, -1.9, WOODB, .04), B(.06, .06, 2.7, .38, .9, -1.9, WOODB, .04),
+    E(.35, .22, .4, -.3, 1.2, 1.2, [.78, .7, .5]), E(.3, .2, .35, .3, 1.2, 1.3, [.7, .62, .45]), E(.3, .2, .3, 0, 1.4, 1.2, [.74, .66, .48]));
+  const G = GREYD;                                                       // donkey
+  out.push(E(.27, .3, .62, 0, 1.08, -2.9, G), E(.17, .26, .2, 0, 1.38, -3.35, G, 0, -.5), E(.12, .15, .26, 0, 1.55, -3.72, G, 0, .3), E(.08, .08, .1, 0, 1.45, -3.95, [.2, .18, .16]),
+    B(.04, .22, .04, -.07, 1.75, -3.7, G, 0, 0, .2), B(.04, .22, .04, .07, 1.75, -3.7, G, 0, 0, -.2), B(.03, .45, .03, 0, .95, -2.25, G, .3));
+  for (const x of [-.14, .14]) for (const z of [-2.6, -3.2]) out.push(B(.09, .78, .09, x, .4, z, G), B(.1, .06, .12, x, .03, z, [.1, .1, .1]));
+  out.push(...PERSON(0, 1.05, -.2, [.8, .78, .7], [.76, .74, .66], 0.05));
+  return wrap(out);
+}
